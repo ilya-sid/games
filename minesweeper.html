@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="ru" data-theme="system">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Сапёр — эмодзи-версия</title>
+<style>
+  :root{
+    --bg:#0f1320; --card:#161a2b; --text:#e7eaf6; --muted:#a9b0c7; --accent:#5b7cfa;
+    --ok:#16a34a; --bad:#dc2626; --border:rgba(255,255,255,.12); --tile:#10162a;
+    --cols:9; --rows:9; --cell:36px; /* по умолчанию 9×9 */
+  }
+  @media (prefers-color-scheme: light){
+    :root{ --bg:#f6f7fb; --card:#ffffff; --text:#0f1222; --muted:#4f5b78; --accent:#3b82f6;
+           --ok:#15803d; --bad:#b91c1c; --border:rgba(0,0,0,.12); --tile:#ffffff; }
+  }
+  html[data-theme="light"]{ --bg:#f6f7fb; --card:#ffffff; --text:#0f1222; --muted:#4f5b78; --accent:#3b82f6; --ok:#15803d; --bad:#b91c1c; --border:rgba(0,0,0,.12); --tile:#ffffff; }
+  html[data-theme="dark"] { --bg:#0f1320; --card:#161a2b; --text:#e7eaf6; --muted:#a9b0c7; --accent:#5b7cfa; --ok:#16a34a; --bad:#dc2626; --border:rgba(255,255,255,.12); --tile:#10162a; }
+
+  *{box-sizing:border-box}
+  body{margin:0; background:var(--bg); color:var(--text); font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial}
+  .wrap{max-width:1100px; margin-inline:auto; padding:20px}
+  .card{background:var(--card); border:1px solid var(--border); border-radius:16px; padding:18px; position:relative}
+  h1{margin:0 0 8px; font-size:clamp(22px,4vw,32px)}
+  .sub{color:var(--muted); margin:0 0 16px}
+  .panel{display:flex; gap:12px; align-items:center; flex-wrap:wrap; justify-content:space-between}
+  .left{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+  .pill{display:inline-flex; gap:6px; align-items:center; padding:6px 10px; border-radius:10px; background:rgba(127,127,127,.08); border:1px solid var(--border); color:var(--muted); font-weight:600}
+  select, button{border-radius:10px; border:1px solid var(--border); background:var(--card); color:var(--text); padding:8px 12px; font-weight:700}
+  button.primary{background:var(--accent); color:#fff; border:0}
+  button.toggle{background:transparent}
+  .boardWrap{margin-top:14px; overflow:auto}
+  .board{
+    display:grid; gap:6px; background:transparent; padding:8px; border-radius:14px; border:1px solid var(--border);
+    grid-template-columns: repeat(var(--cols), var(--cell));
+    grid-template-rows: repeat(var(--rows), var(--cell));
+  }
+  .cell{display:grid; place-items:center; width:var(--cell); height:var(--cell); border-radius:8px; background:var(--tile); cursor:pointer; user-select:none; font-size:20px; line-height:1}
+  .cell.revealed{background:transparent; border:1px solid var(--border); cursor:default}
+  .stats{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+  .status{min-height:24px; font-weight:700}
+  .good{color:var(--ok)} .bad{color:var(--bad)} .muted{color:var(--muted)}
+  details{background:var(--card); border:1px solid var(--border); border-radius:12px; padding:10px 12px}
+  summary{cursor:pointer; font-weight:700}
+  @media (max-width:640px){ :root{ --cell:34px } }
+
+  /* ===== Выпадающее меню (Игры + Тема) ===== */
+  .menu{position:fixed; right:12px; top:12px; z-index:10}
+  .menu summary{
+    list-style:none; cursor:pointer; background:var(--accent); color:#fff; border:0;
+    padding:8px 12px; border-radius:12px; font-weight:700; box-shadow:0 6px 16px rgba(0,0,0,.25)
+  }
+  .menu summary::-webkit-details-marker{display:none}
+  .menu[open] summary{filter:brightness(.95)}
+  .menuPanel{
+    margin-top:8px; right:0; position:absolute; min-width:240px;
+    background:var(--card); border:1px solid var(--border); border-radius:14px; padding:10px;
+    box-shadow:0 16px 40px rgba(0,0,0,.35)
+  }
+  .menu h4{margin:6px 8px; font-size:13px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em}
+  .menu nav a{display:block; padding:8px 10px; color:var(--text); text-decoration:none; border-radius:10px}
+  .menu nav a:hover{background:rgba(127,127,127,.12)}
+  .themeRow{display:grid; gap:8px; padding:6px 8px 4px}
+  .themeRow select{background:transparent; color:var(--text); border:1px solid var(--border); border-radius:10px; padding:8px 10px}
+  @media (prefers-color-scheme: light){
+    html[data-theme="light"] .themeRow select{border:1px solid #ccc; background:#fff; color:#000}
+  }
+</style>
+</head>
+<body>
+
+<!-- Меню: ссылки на игры + скрытые настройки темы -->
+<details class="menu">
+  <summary>Меню ▾</summary>
+  <div class="menuPanel" role="menu">
+    <h4>Игры</h4>
+    <nav>
+      <a href="index.html">🧮 Примеры (тренажёр)</a>
+      <a href="battleship.html">🚢 Морской бой</a>
+      <a href="cities.html">🌍 Города</a>
+      <a href="minesweeper.html">💣 Сапёр</a>
+      <a href="tictactoe.html">❌⭕ Крестики-нолики</a>
+    </nav>
+    <h4>Тема</h4>
+    <div class="themeRow">
+      <select id="theme" aria-label="Тема">
+        <option value="light">Светлая</option>
+        <option value="dark">Тёмная</option>
+        <option value="system" selected>Как на устройстве</option>
+      </select>
+    </div>
+  </div>
+</details>
+
+  <div class="wrap">
+    <div class="card">
+      <h1>Сапёр (эмодзи)</h1>
+      <div class="sub">Классика: левая кнопка — открыть; правая или «Режим: Флаг» — поставить 🚩.</div>
+
+      <div class="panel">
+        <div class="left">
+          <label class="pill">Сложность:
+            <select id="level">
+              <option value="beg">Новичок 9×9 (10 мин)</option>
+              <option value="int">Любитель 16×16 (40 мин)</option>
+              <option value="exp">Профи 30×16 (99 мин)</option>
+            </select>
+          </label>
+          <button id="newGame" class="primary">Новая игра</button>
+          <button id="flagMode" class="toggle" title="Переключить режим флага">Режим: Открывать</button>
+        </div>
+        <div class="stats">
+          <span class="pill">⛳ Флаги: <b id="flags">0</b></span>
+          <span class="pill">💣 Мин всего: <b id="mines">0</b></span>
+          <span class="pill">⏱ Время: <b id="time">0</b>с</span>
+        </div>
+      </div>
+
+      <div class="boardWrap">
+        <div id="board" class="board" aria-label="Игровое поле"></div>
+      </div>
+
+      <div class="status" id="status"></div>
+
+      <div style="margin-top:14px">
+        <details>
+          <summary>Правила</summary>
+          <div style="margin-top:8px; line-height:1.6">
+            <ul style="margin:0; padding-left:18px">
+              <li>Цель — открыть все клетки без мин. Мины помечайте 🚩.</li>
+              <li>Цифра показывает число мин среди восьми соседних клеток.</li>
+              <li>Первая открытая клетка — безопасна; пустые зоны раскрываются цепочкой.</li>
+              <li>ЛКМ — открыть. ПКМ или режим «Флаг» — поставить/снять 🚩.</li>
+              <li>Победа — все «неминные» клетки открыты. Поражение — взрыв 💣.</li>
+            </ul>
+          </div>
+        </details>
+      </div>
+    </div>
+  </div>
+
+<script>
+(()=>{
+  // ====== ТЕМА (селектор в меню) ======
+  const themeSel = document.getElementById("theme");
+  const menu = document.querySelector('.menu');
+  function applyTheme(mode){
+    document.documentElement.setAttribute("data-theme", mode);
+    localStorage.setItem("mines-theme", mode);
+    if(mode==="system"){ document.documentElement.setAttribute("data-theme","system"); }
+  }
+  (function initTheme(){
+    const saved = localStorage.getItem("mines-theme") || "system";
+    themeSel.value = saved; applyTheme(saved);
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    mq.addEventListener("change", ()=>{ if((localStorage.getItem("mines-theme")||"system")==="system") applyTheme("system"); });
+  })();
+  themeSel.addEventListener("change", ()=>{ applyTheme(themeSel.value); menu.open=false; });
+
+  // Закрывать меню по клику по ссылке
+  document.querySelectorAll('.menu nav a').forEach(a=> a.addEventListener('click', ()=>{ menu.open=false; }));
+
+  // ====== КОНСТАНТЫ/ЭМОДЗИ ======
+  const EMO = {
+    covered: "⬜️",  // закрытая
+    empty:   "▫️",  // открытая пустая
+    mine:    "💣",
+    flag:    "🚩",
+    numbers: {1:"1️⃣",2:"2️⃣",3:"3️⃣",4:"4️⃣",5:"5️⃣",6:"6️⃣",7:"7️⃣",8:"8️⃣"}
+  };
+
+  const boardEl = document.getElementById("board");
+  const levelSel = document.getElementById("level");
+  const newBtn = document.getElementById("newGame");
+  const flagBtn = document.getElementById("flagMode");
+  const flagsEl = document.getElementById("flags");
+  const minesEl = document.getElementById("mines");
+  const timeEl = document.getElementById("time");
+  const statusEl = document.getElementById("status");
+
+  let W=9, H=9, M=10;           // размеры/мины
+  let grid = [];                // клетки
+  let firstClick = true;
+  let revealed = 0;
+  let flags = 0;
+  let flagMode = false;
+  let timer=null, seconds=0;
+  let over = false;
+
+  function setupByLevel(){
+    const v = levelSel.value;
+    if (v==="beg"){ W=9; H=9; M=10; }
+    else if (v==="int"){ W=16; H=16; M=40; }
+    else { W=30; H=16; M=99; }
+    boardEl.style.setProperty("--cols", W);
+    boardEl.style.setProperty("--rows", H);
+  }
+
+  function reset(){
+    setupByLevel();
+    stopTimer(); seconds=0; timeEl.textContent="0";
+    firstClick = true; over=false; revealed=0; flags=0;
+    flagsEl.textContent="0"; minesEl.textContent=String(M);
+    statusEl.textContent = "Откройте любую клетку.";
+    boardEl.innerHTML = "";
+    grid = Array.from({length:H}, (_,y)=> Array.from({length:W}, (_,x)=>({
+      x,y, mine:false, n:0, open:false, flag:false, el:null
+    })));
+    for (let y=0;y<H;y++){
+      for (let x=0;x<W;x++){
+        const d = document.createElement("div");
+        d.className = "cell";
+        d.textContent = EMO.covered;
+        d.dataset.x = x; d.dataset.y = y;
+        d.addEventListener("click", onLeft);
+        d.addEventListener("contextmenu", e=>{ e.preventDefault(); toggleFlag(x,y); });
+        d.addEventListener("pointerdown", e=>{
+          if (e.pointerType!=="mouse"){ d._pressT = setTimeout(()=> toggleFlag(x,y), 420); }
+        });
+        d.addEventListener("pointerup", ()=> clearTimeout(d._pressT));
+        d.addEventListener("pointerleave", ()=> clearTimeout(d._pressT));
+        grid[y][x].el = d;
+        boardEl.appendChild(d);
+      }
+    }
+  }
+
+  function placeMines(sx,sy){
+    const safe = new Set();
+    for (let dy=-1; dy<=1; dy++) for (let dx=-1; dx<=1; dx++){
+      const nx=sx+dx, ny=sy+dy;
+      if (inside(nx,ny)) safe.add(ny*W+nx);
+    }
+    let placed=0;
+    while(placed<M){
+      const x = rand(0,W-1), y = rand(0,H-1);
+      const idx = y*W+x;
+      if (safe.has(idx)) continue;
+      const c = grid[y][x];
+      if (!c.mine){ c.mine=true; placed++; }
+    }
+    for (let y=0;y<H;y++) for (let x=0;x<W;x++){
+      grid[y][x].n = countAround(x,y, cell=>cell.mine);
+    }
+  }
+
+  function onLeft(e){
+    const x = +e.currentTarget.dataset.x;
+    const y = +e.currentTarget.dataset.y;
+    if (over) return;
+    if (flagMode){ toggleFlag(x,y); return; }
+    openCell(x,y);
+  }
+
+  function toggleFlag(x,y){
+    if (over) return;
+    const c = grid[y][x];
+    if (c.open) return;
+    c.flag = !c.flag;
+    c.el.textContent = c.flag ? EMO.flag : EMO.covered;
+    flags += c.flag ? 1 : -1;
+    flagsEl.textContent = String(flags);
+  }
+
+  function openCell(x,y){
+    const c = grid[y][x];
+    if (c.open || c.flag) return;
+    if (firstClick){
+      placeMines(x,y);
+      firstClick = false;
+      startTimer();
+    }
+    if (c.mine){
+      revealMines(x,y);
+      c.el.classList.add("revealed");
+      c.el.textContent = EMO.mine;
+      gameOver(false);
+      return;
+    }
+    revealSafe(x,y);
+    checkWin();
+  }
+
+  function revealSafe(x,y){
+    const q=[[x,y]];
+    while(q.length){
+      const [cx,cy]=q.pop();
+      const cell = grid[cy][cx];
+      if (cell.open || cell.flag) continue;
+      cell.open = true; revealed++;
+      cell.el.classList.add("revealed");
+      if (cell.n===0){
+        cell.el.textContent = EMO.empty;
+        forEachAround(cx,cy,(nx,ny,nc)=>{
+          if (!nc.open && !nc.flag && !nc.mine) q.push([nx,ny]);
+        });
+      } else {
+        cell.el.textContent = EMO.numbers[cell.n] || String(cell.n);
+      }
+    }
+  }
+
+  function revealMines(blastX,blastY){
+    for (let y=0;y<H;y++) for (let x=0;x<W;x++){
+      const c = grid[y][x];
+      if (c.mine){
+        c.el.classList.add("revealed");
+        c.el.textContent = EMO.mine;
+      } else if (c.flag && !c.mine){
+        c.el.textContent = "❌";
+      }
+    }
+    grid[blastY][blastX].el.textContent = "💥";
+  }
+
+  function checkWin(){
+    if (over) return;
+    const need = W*H - M;
+    if (revealed>=need){
+      for (let y=0;y<H;y++) for (let x=0;x<W;x++){
+        const c = grid[y][x];
+        if (!c.open && c.mine){ c.flag=true; c.el.textContent = EMO.flag; }
+      }
+      gameOver(true);
+    }
+  }
+
+  function gameOver(win){
+    over = true;
+    stopTimer();
+    statusEl.innerHTML = win ? `<span class="good">Победа! 🎉</span>` : `<span class="bad">Бум! 💣 Игра окончена.</span>`;
+  }
+
+  // ====== ВСПОМОГАТЕЛЬНЫЕ ======
+  function countAround(x,y, pred){
+    let n=0;
+    forEachAround(x,y, (_,__, cell)=>{ if (pred(cell)) n++; });
+    return n;
+  }
+  function forEachAround(x,y, fn){
+    for (let dy=-1; dy<=1; dy++) for (let dx=-1; dx<=1; dx++){
+      if (dx===0 && dy===0) continue;
+      const nx=x+dx, ny=y+dy;
+      if (inside(nx,ny)) fn(nx,ny, grid[ny][nx]);
+    }
+  }
+  function inside(x,y){ return x>=0 && x<W && y>=0 && y<H; }
+  function rand(a,b){ return Math.floor(Math.random()*(b-a+1))+a; }
+  function startTimer(){ stopTimer(); timer = setInterval(()=>{ seconds++; timeEl.textContent = String(seconds); }, 1000); }
+  function stopTimer(){ if (timer){ clearInterval(timer); timer=null; } }
+
+  // ====== UI КНОПКИ ======
+  newBtn.addEventListener("click", reset);
+  levelSel.addEventListener("change", reset);
+  flagBtn.addEventListener("click", ()=>{
+    flagMode = !flagMode;
+    flagBtn.textContent = flagMode ? "Режим: Флаг 🚩" : "Режим: Открывать";
+  });
+  boardEl.addEventListener("contextmenu", e=> e.preventDefault());
+
+  // Старт игры
+  reset();
+})();
+</script>
+</body>
+</html>

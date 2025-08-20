@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="ru" data-theme="system">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Крестики-нолики — эмодзи</title>
+<style>
+  :root{
+    --bg:#0f1320; --card:#161a2b; --text:#e7eaf6; --muted:#a9b0c7; --accent:#5b7cfa; --border:rgba(255,255,255,.12);
+    --cell:96px;
+  }
+  @media (prefers-color-scheme: light){
+    :root{ --bg:#f6f7fb; --card:#ffffff; --text:#0f1222; --muted:#4f5b78; --accent:#3b82f6; --border:rgba(0,0,0,.12); }
+  }
+  html[data-theme="light"]{ --bg:#f6f7fb; --card:#ffffff; --text:#0f1222; --muted:#4f5b78; --accent:#3b82f6; --border:rgba(0,0,0,.12); }
+  html[data-theme="dark"] { --bg:#0f1320; --card:#161a2b; --text:#e7eaf6; --muted:#a9b0c7; --accent:#5b7cfa; --border:rgba(255,255,255,.12); }
+
+  *{box-sizing:border-box}
+  body{margin:0; background:var(--bg); color:var(--text); font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial}
+  .wrap{max-width:520px; margin:auto; padding:20px}
+  .card{background:var(--card); border:1px solid var(--border); border-radius:16px; padding:18px; box-shadow:0 10px 30px rgba(0,0,0,.08); position:relative}
+  h1{margin:0 0 8px; font-size:clamp(22px,4vw,32px)}
+  .sub{color:var(--muted); margin:0 0 16px}
+  .board{display:grid; grid-template-columns:repeat(3, var(--cell)); grid-template-rows:repeat(3, var(--cell)); gap:10px; justify-content:center; margin:8px 0 14px}
+  .cell{display:grid; place-items:center; width:var(--cell); height:var(--cell); border-radius:16px; background:var(--card); border:2px solid var(--border); cursor:pointer; user-select:none; font-size:56px; transition:transform .08s}
+  .cell:active{transform:scale(.98)}
+  .cell.win{outline:3px solid var(--accent)}
+  .panel{display:flex; gap:10px; align-items:center; justify-content:space-between; flex-wrap:wrap}
+  .status{min-height:24px; font-weight:700}
+  button{border:0; background:var(--accent); color:#fff; padding:10px 14px; border-radius:12px; font-weight:700; cursor:pointer}
+  @media (max-width:430px){ :root{ --cell:82px } }
+
+  /* ===== Выпадающее меню (Игры + Тема) ===== */
+  .menu{position:fixed; right:12px; top:12px; z-index:10}
+  .menu summary{
+    list-style:none; cursor:pointer; background:var(--accent); color:#fff; border:0;
+    padding:8px 12px; border-radius:12px; font-weight:700; box-shadow:0 6px 16px rgba(0,0,0,.25)
+  }
+  .menu summary::-webkit-details-marker{display:none}
+  .menu[open] summary{filter:brightness(.95)}
+  .menuPanel{
+    margin-top:8px; right:0; position:absolute; min-width:240px;
+    background:var(--card); border:1px solid var(--border); border-radius:14px; padding:10px;
+    box-shadow:0 16px 40px rgba(0,0,0,.35)
+  }
+  .menu h4{margin:6px 8px; font-size:13px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em}
+  .menu nav a{display:block; padding:8px 10px; color:var(--text); text-decoration:none; border-radius:10px}
+  .menu nav a:hover{background:rgba(127,127,127,.12)}
+  .themeRow{display:grid; gap:8px; padding:6px 8px 4px}
+  .themeRow select{background:transparent; color:var(--text); border:1px solid var(--border); border-radius:10px; padding:8px 10px}
+  @media (prefers-color-scheme: light){
+    html[data-theme="light"] .themeRow select{border:1px solid #ccc; background:#fff; color:#000}
+  }
+</style>
+</head>
+<body>
+
+<!-- Меню: ссылки на игры + скрытые настройки темы -->
+<details class="menu">
+  <summary>Меню ▾</summary>
+  <div class="menuPanel" role="menu">
+    <h4>Игры</h4>
+    <nav>
+      <a href="index.html">🧮 Примеры (тренажёр)</a>
+      <a href="battleship.html">🚢 Морской бой</a>
+      <a href="cities.html">🌍 Города</a>
+      <a href="minesweeper.html">💣 Сапёр</a>
+      <a href="tictactoe.html">❌⭕ Крестики-нолики</a>
+    </nav>
+    <h4>Тема</h4>
+    <div class="themeRow">
+      <select id="theme" aria-label="Тема">
+        <option value="light">Светлая</option>
+        <option value="dark">Тёмная</option>
+        <option value="system" selected>Как на устройстве</option>
+      </select>
+    </div>
+  </div>
+</details>
+
+  <div class="wrap">
+    <div class="card">
+      <h1>Крестики-нолики</h1>
+      <div class="sub">Поле 3×3. Вы — ❌. Компьютер — ⭕.</div>
+
+      <div id="board" class="board" aria-label="Игровое поле"></div>
+
+      <div class="panel">
+        <div class="status" id="status">Ваш ход.</div>
+        <button id="restart">Новая игра</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+(()=>{
+  // ===== ТЕМА (селектор в меню) =====
+  const themeSel = document.getElementById("theme");
+  const menu = document.querySelector('.menu');
+  function applyTheme(mode){
+    document.documentElement.setAttribute("data-theme", mode);
+    localStorage.setItem("ttt-theme", mode);
+    if(mode==="system"){ document.documentElement.setAttribute("data-theme","system"); }
+  }
+  (function initTheme(){
+    const saved = localStorage.getItem("ttt-theme") || "system";
+    themeSel.value = saved; applyTheme(saved);
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    mq.addEventListener("change", ()=>{ if((localStorage.getItem("ttt-theme")||"system")==="system") applyTheme("system"); });
+  })();
+  themeSel.addEventListener("change", ()=> { applyTheme(themeSel.value); menu.open=false; });
+
+  // Закрывать меню по клику по ссылке
+  document.querySelectorAll('.menu nav a').forEach(a=> a.addEventListener('click', ()=>{ menu.open=false; }));
+
+  // ===== ИГРА =====
+  const boardEl = document.getElementById("board");
+  const statusEl = document.getElementById("status");
+  const restartBtn = document.getElementById("restart");
+
+  const X = "❌", O = "⭕";
+  let board, over, humanTurn;
+
+  function newGame(){
+    board = Array(9).fill(null);
+    over = false;
+    humanTurn = true; // вы ходите первыми
+    boardEl.innerHTML = "";
+    for (let i=0;i<9;i++){
+      const c = document.createElement("button");
+      c.className = "cell";
+      c.dataset.i = i;
+      c.ariaLabel = "Пустая клетка";
+      c.addEventListener("click", onCell);
+      boardEl.appendChild(c);
+    }
+    statusEl.textContent = "Ваш ход.";
+  }
+
+  function onCell(e){
+    if (over || !humanTurn) return;
+    const i = +e.currentTarget.dataset.i;
+    if (board[i]) return;
+    move(i, X);
+    const res = checkEnd();
+    if (res) return finish(res);
+    humanTurn = false;
+    statusEl.textContent = "Компьютер думает…";
+    setTimeout(()=>{ aiMove(); }, 200);
+  }
+
+  function aiMove(){
+    const i = bestMove(board);
+    move(i, O);
+    const res = checkEnd();
+    if (res) return finish(res);
+    humanTurn = true;
+    statusEl.textContent = "Ваш ход.";
+  }
+
+  function move(i, ch){
+    board[i] = ch;
+    const cell = boardEl.children[i];
+    cell.textContent = ch;
+    cell.ariaLabel = ch === X ? "Крестик" : "Нолик";
+  }
+
+  const wins = [
+    [0,1,2],[3,4,5],[6,7,8],
+    [0,3,6],[1,4,7],[2,5,8],
+    [0,4,8],[2,4,6]
+  ];
+
+  function checkWinner(b){
+    for (const [a,c,d] of wins){
+      if (b[a] && b[a]===b[c] && b[a]===b[d]) return {winner:b[a], line:[a,c,d]};
+    }
+    if (b.every(Boolean)) return {winner:"draw", line:[]};
+    return null;
+  }
+
+  function checkEnd(){ return checkWinner(board); }
+
+  function finish(res){
+    over = true;
+    if (res.winner==="draw"){
+      statusEl.textContent = "Ничья.";
+    } else {
+      res.line.forEach(i=> boardEl.children[i].classList.add("win"));
+      statusEl.textContent = res.winner===X ? "Победа! 🎉" : "Проигрыш. Попробуем ещё?";
+    }
+  }
+
+  // Непобедимый minimax (для 3×3 работает мгновенно)
+  function bestMove(b){
+    let bestScore = -Infinity, moveIdx = -1;
+    for (let i=0;i<9;i++){
+      if (!b[i]){
+        b[i] = O;
+        const score = minimax(b, false);
+        b[i] = null;
+        if (score > bestScore){ bestScore = score; moveIdx = i; }
+      }
+    }
+    return moveIdx;
+  }
+  const scores = {[O]:1, [X]:-1, draw:0};
+  function minimax(b, isMax){
+    const res = checkWinner(b);
+    if (res) return scores[res.winner] ?? 0;
+    if (isMax){
+      let best = -Infinity;
+      for (let i=0;i<9;i++){
+        if (!b[i]){ b[i]=O; best = Math.max(best, minimax(b,false)); b[i]=null; }
+      }
+      return best;
+    } else {
+      let best = Infinity;
+      for (let i=0;i<9;i++){
+        if (!b[i]){ b[i]=X; best = Math.min(best, minimax(b,true)); b[i]=null; }
+      }
+      return best;
+    }
+  }
+
+  restartBtn.addEventListener("click", newGame);
+  newGame();
+})();
+</script>
+</body>
+</html>

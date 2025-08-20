@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="ru" data-theme="system">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Игра «Города»</title>
+<style>
+  :root{
+    --bg:#0f1320; --card:#161a2b; --text:#e7eaf6; --muted:#a9b0c7; --accent:#5b7cfa;
+    --ok:#16a34a; --bad:#dc2626; --border:rgba(255,255,255,.12); --input:#0f1629;
+  }
+  @media (prefers-color-scheme: light){
+    :root{ --bg:#f6f7fb; --card:#ffffff; --text:#0f1222; --muted:#4f5b78; --accent:#3b82f6;
+           --ok:#15803d; --bad:#b91c1c; --border:rgba(0,0,0,.12); --input:#ffffff; }
+  }
+  html[data-theme="light"]{ --bg:#f6f7fb; --card:#ffffff; --text:#0f1222; --muted:#4f5b78; --accent:#3b82f6; --ok:#15803d; --bad:#b91c1c; --border:rgba(0,0,0,.12); --input:#ffffff; }
+  html[data-theme="dark"] { --bg:#0f1320; --card:#161a2b; --text:#e7eaf6; --muted:#a9b0c7; --accent:#5b7cfa; --ok:#16a34a; --bad:#dc2626; --border:rgba(255,255,255,.12); --input:#0f1629; }
+
+  *{box-sizing:border-box}
+  body{margin:0; background:var(--bg); color:var(--text); font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial}
+  .wrap{max-width:980px; margin-inline:auto; padding:20px}
+  .card{background:var(--card); border:1px solid var(--border); border-radius:16px; padding:18px; position:relative}
+  h1{margin:0 0 8px; font-size:clamp(22px,4vw,32px)}
+  .sub{color:var(--muted); margin:0 0 16px}
+  .row{display:grid; grid-template-columns:1fr auto; gap:10px; align-items:center}
+  input[type="text"]{width:100%; font-size:clamp(18px,3.5vw,22px); padding:14px 16px; border-radius:12px; border:2px solid transparent; background:var(--input); color:var(--text); outline:none; transition:.15s}
+  input.ok{border-color:var(--ok); box-shadow:0 0 0 4px color-mix(in oklab, var(--ok) 18%, transparent)}
+  input.bad{border-color:var(--bad); box-shadow:0 0 0 4px color-mix(in oklab, var(--bad) 18%, transparent)}
+  button{background:var(--accent); color:#fff; border:0; padding:12px 16px; border-radius:12px; font-weight:700; cursor:pointer}
+  button.secondary{background:transparent; color:var(--text); border:1px solid var(--border)}
+  .status{margin-top:10px; min-height:24px}
+  .badge{display:inline-block; padding:4px 8px; border-radius:999px; font-weight:700; font-size:13px; border:1px solid var(--border); background:rgba(127,127,127,.08); color:var(--muted)}
+  .grid{display:grid; grid-template-columns:repeat(2,minmax(280px,1fr)); gap:12px; margin-top:12px}
+  .panel{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+  .log{max-height:300px; overflow:auto; padding:12px; border:1px solid var(--border); border-radius:12px; background:var(--card)}
+  .log p{margin:6px 0}
+  .pill{display:inline-block; padding:4px 8px; border-radius:10px; background:rgba(127,127,127,.08); border:1px solid var(--border); font-size:13px; color:var(--muted)}
+  .scores{display:flex; gap:10px; align-items:center}
+  .scores b{font-size:18px}
+  .hintBlock{margin-top:8px}
+  .hintText{color:var(--muted); font-size:14px; display:none}
+  .hintText.show{display:block}
+  @media (max-width:720px){ .grid{grid-template-columns:1fr} }
+
+  /* ===== Выпадающее меню (Игры + Тема) ===== */
+  .menu{position:fixed; right:12px; top:12px; z-index:10}
+  .menu summary{
+    list-style:none; cursor:pointer; background:var(--accent); color:#fff; border:0;
+    padding:8px 12px; border-radius:12px; font-weight:700; box-shadow:0 6px 16px rgba(0,0,0,.25)
+  }
+  .menu summary::-webkit-details-marker{display:none}
+  .menu[open] summary{filter:brightness(.95)}
+  .menuPanel{
+    margin-top:8px; right:0; position:absolute; min-width:240px;
+    background:var(--card); border:1px solid var(--border); border-radius:14px; padding:10px;
+    box-shadow:0 16px 40px rgba(0,0,0,.35)
+  }
+  .menu h4{margin:6px 8px; font-size:13px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em}
+  .menu nav a{display:block; padding:8px 10px; color:var(--text); text-decoration:none; border-radius:10px}
+  .menu nav a:hover{background:rgba(127,127,127,.12)}
+  .themeRow{display:grid; gap:8px; padding:6px 8px 4px}
+  .themeRow select{background:transparent; color:var(--text); border:1px solid var(--border); border-radius:10px; padding:8px 10px}
+  @media (prefers-color-scheme: light){
+    html[data-theme="light"] .themeRow select{border:1px solid #ccc; background:#fff; color:#000}
+  }
+</style>
+</head>
+<body>
+
+<!-- Выпадающее меню: ссылки на игры + тема -->
+<details class="menu">
+  <summary>Меню ▾</summary>
+  <div class="menuPanel" role="menu">
+    <h4>Игры</h4>
+    <nav>
+      <a href="index.html">🧮 Примеры (тренажёр)</a>
+      <a href="battleship.html">🚢 Морской бой</a>
+      <a href="cities.html">🌍 Города</a>
+      <a href="minesweeper.html">💣 Сапёр</a>
+      <a href="tictactoe.html">❌⭕ Крестики-нолики</a>
+    </nav>
+    <h4>Тема</h4>
+    <div class="themeRow">
+      <select id="theme" aria-label="Тема">
+        <option value="light">Светлая</option>
+        <option value="dark">Тёмная</option>
+        <option value="system" selected>Как на устройстве</option>
+      </select>
+    </div>
+  </div>
+</details>
+
+  <div class="wrap">
+    <div class="card">
+      <h1>Игра «Города»</h1>
+      <div class="sub">Пиши город на <b>последнюю букву</b> города компьютера. Только реальные города мира на русском. Без повторов.</div>
+
+      <div class="panel">
+        <span class="scores">
+          <span class="pill">Счёт: <b id="score">0</b></span>
+          <span class="pill">Рекорд: <b id="best">0</b></span>
+        </span>
+        <span class="pill">Текущая буква: <b id="need">—</b></span>
+        <button id="newGame" class="secondary">Новая игра</button>
+      </div>
+
+      <div class="row" style="margin-top:10px">
+        <input id="input" type="text" placeholder="Ваш город (на русском)" autocomplete="off" />
+        <button id="submit">Отправить</button>
+      </div>
+      <div class="status" id="status"></div>
+
+      <div class="grid">
+        <div class="card" style="padding:12px">
+          <div class="badge">Ход компьютера</div>
+          <div style="font-size:20px; margin-top:6px"><b id="lastComp">—</b></div>
+          <div class="hintBlock">
+            <button id="toggleHints" class="secondary" style="padding:6px 10px; font-size:14px">Показать подсказки</button>
+            <div class="hintText" id="lastChain"></div>
+          </div>
+        </div>
+        <div class="card log">
+          <div class="badge">История</div>
+          <div id="history"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(()=>{
+  // ====== БАЗА ГОРОДОВ ======
+  const RU = [
+    "москва","санкт-петербург","новосибирск","екатеринбург","нижний новгород","казань","челябинск","омск","самара",
+    "ростов-на-дону","уфа","красноярск","пермь","воронеж","волгоград","краснодар","саратов","тюмень","тольятти",
+    "ижевск","барнаул","ульяновск","иркутск","хабаровск","ярославль","владивосток","махачкала","томск","оренбург",
+    "кемерово","новокузнецк","рязань","астрахань","пенза","липецк","киров","чебоксары","калининград","курск","тула",
+    "севастополь","ставрополь","брянск","тверь","магнитогорск","иваново","белгород","сочи","смоленск","калуга",
+    "череповец","архангельск","владимир","якутск","нальчик","курган","сургут","вологда","псков","тамбов","мурманск",
+    "орёл","майкоп","грозный","сыктывкар","кострома","петрозаводск","элиста","чита","улан-удэ","абакан","набережные челны",
+    "йошкар-ола","саранск","биробиджан","анапа","арзамас","балаково","благовещенск","великий новгород","великие луки",
+    "владикавказ","гатчина","геленджик","дербент","дзержинск","долгопрудный","дубна","елабуга","ессентуки","златоуст",
+    "каменск-уральский","камышин","канск","ковров","коломна","комсомольск-на-амуре","копейск","королёв","котлас",
+    "красногорск","ленинск-кузнецкий","лесосибирск","магадан","мытищи","надым","назрань","нижневартовск","нижнекамск",
+    "николаевск-на-амуре","нерюнгри","новороссийск","новочеркасск","новошахтинск","норильск","няягань","обнинск",
+    "одинцово","петропавловск-камчатский","пятигорск","рославль","ростов","рудный","рыбинск","салават","салехард",
+    "северодвинск","северск","сергиев посад","серов","серпухов","симферополь","ставрополь","стерлитамак","тагил нижний",
+    "тобольск","туапсе","тюмень","ульяновск","уфа","ухта","феодосия","ханты-мансийск","химки","чебоксары",
+    "черкесск","черногорск","шимановск","энгельс","южно-сахалинск","алексин","алушта","асбест","ахтубинск","балашиха",
+    "батайск","березники","бор","будённовск","губкин","дмитров","домодедово","егорьевск","железногорск","зеленоград",
+    "зеленодольск","звенигород","камышлов","кинешма","киселёвск","клин","колпино","краснокамск","кропоткин","кузнецк",
+    "купино","курчатов","люберцы","минеральные воды","миасс","новомосковск","новотроицк","новый уренгой","невинномысск",
+    "нахабино","прокопьевск","пушкино","реутов","рыбное","сарны","сергиевск","сертолово","соликамск","ступино",
+    "талдом","троицк","фрязино","черноголовка","шадринск","щёлково","электросталь","электрогорск"
+  ];
+  const WORLD = [
+    "берлин","мюнхен","гамбург","кёльн","дюссельдорф","штутгарт","париж","лион","марсель","ницца","мадрид","барселона",
+    "валенсия","севилья","лиссабон","порту","рим","милан","турин","флоренция","неаполь","венеция","генуя","варшава",
+    "краков","вроцлав","познань","гданьск","лодзь","вена","грац","салцбург","брюссель","антверпен","амстердам","роттердам",
+    "гаага","утрехт","копенгаген","стокгольм","мальмё","осло","берген","хельсинки","таллин","рига","вильнюс","рейкьявик",
+    "лондон","манчестер","ливерпуль","эдинбург","глазго","дублин","белфаст","кардифф","афины","салоники","бухарест",
+    "софия","будапешт","братислава","любляна","загреб","приштина","сараево","прага","андорра-ла-велья","сан-марино",
+    "монако","люксембург","вашингтон","нью-йорк","бостон","филадельфия","майами","чикаго","детройт","денвер","финикс",
+    "лос-анджелес","сиэтл","сан-диего","сан-хосе","сан-антонио","даллас","хьюстон","лас-вегас","мехико","гуадалахара",
+    "монтеррей","оттава","торонто","монреаль","ванкувер","квебек","буэнос-айрес","кордова","росарио","сантьяго","лима",
+    "богота","медельин","кито","гуаякиль","караккас","рио-де-жанейро","сан-паулу","бразилиа","сальвадор","куритиба",
+    "пекин","шанхай","гуанчжоу","шэньчжэнь","нанькин","тяньцзинь","ухань","чэнду","сиань","чунцин","токио","йокогама",
+    "осака","нагоя","саппоро","фукуока","сеул","пусан","инчхон","дэгу","манила","бангкок","хонконг","сингапур",
+    "куала-лумпур","джакарта","сурабая","дели","мумбаи","колката","ченнай","бангалор","лахор","исламабад","кабул",
+    "тегеран","дубай","абу-даби","доха","эр-рияд","джидда","амман","иерусалим","тел-авив","стамбул","анкара","измир",
+    "каир","александрия","хартум","аддис-абеба","лагос","абиджан","найроби","дар-эс-салам","капштадт","йоханнесбург",
+    "рабат","касабланка","тунис","алжир","сидней","мельбурн","брисбен","перт","аделаида","веллингтон","окленд","канберра"
+  ];
+  const CITIES = new Set([...RU, ...WORLD].map(s => s.toLowerCase().replaceAll("ё","е").replace(/\s+/g," ").trim()).filter(Boolean));
+
+  // ====== УТИЛИТЫ ======
+  const normalize = s => s.toLowerCase().replaceAll("ё","е").replace(/[«»"']/g,"").replace(/\s+/g," ").trim();
+  const lastSignificant = (s)=>{
+    s = normalize(s);
+    for (let i=s.length-1;i>=0;i--){
+      let ch = s[i];
+      if (!/[а-я\- ]/.test(ch)) continue;
+      if ("ьъы".includes(ch)) continue;
+      if (ch==="й") return "и";
+      return ch;
+    }
+    return "";
+  };
+  const firstSignificant = (s)=>{ s = normalize(s).replace(/^-|^ /,""); let ch = s[0]; return ch==="й"?"и":ch; };
+  const capitalize = s => s.length ? s[0].toUpperCase()+s.slice(1) : s;
+  const $ = sel => document.querySelector(sel);
+
+  // ====== UI ======
+  const input = $("#input"), submit=$("#submit"), statusEl=$("#status"),
+        lastComp=$("#lastComp"), needEl=$("#need"), scoreEl=$("#score"), bestEl=$("#best"),
+        historyEl=$("#history"), lastChainEl=$("#lastChain"), newGameBtn=$("#newGame"),
+        toggleHintsBtn=$("#toggleHints");
+
+  let used = new Set();
+  let score = 0;
+  let best = +(localStorage.getItem("cities-best")||0);
+  bestEl.textContent = best;
+  let hintsOn = false;
+
+  // ====== ТЕМА (в выпадающем меню) ======
+  const themeSel = $("#theme");
+  const menu = document.querySelector('.menu');
+  function applyTheme(mode){
+    document.documentElement.setAttribute("data-theme", mode);
+    localStorage.setItem("cities-theme", mode);
+    if(mode==="system"){ document.documentElement.setAttribute("data-theme","system"); }
+  }
+  (function initTheme(){
+    const saved = localStorage.getItem("cities-theme") || "system";
+    if (themeSel) { themeSel.value = saved; }
+    applyTheme(saved);
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    mq.addEventListener("change", ()=>{ if((localStorage.getItem("cities-theme")||"system")==="system") applyTheme("system"); });
+  })();
+  if (themeSel){
+    themeSel.addEventListener("change", ()=> { applyTheme(themeSel.value); if(menu) menu.open=false; });
+  }
+  // Закрывать меню по клику по ссылке
+  document.querySelectorAll('.menu nav a').forEach(a=> a.addEventListener('click', ()=>{ if(menu) menu.open=false; }));
+
+  // ====== ИГРОВАЯ ЛОГИКА ======
+  function resetGame(){
+    used.clear();
+    score = 0; scoreEl.textContent = "0";
+    historyEl.innerHTML = "";
+    input.classList.remove("ok","bad");
+    const pool = Array.from(CITIES).filter(c=>!used.has(c));
+    const start = pool[Math.floor(Math.random()*pool.length)];
+    commitComp(start);
+    statusEl.textContent = "Ваш ход. Введите город на букву: " + needEl.textContent.toUpperCase();
+    input.focus();
+    renderChain();
+  }
+
+  function commitComp(city){
+    const n = normalize(city);
+    used.add(n);
+    lastComp.textContent = capitalize(city);
+    const needed = lastSignificant(n);
+    needEl.textContent = needed || "—";
+    addHistory("Компьютер", city);
+  }
+
+  function commitUser(city){
+    const n = normalize(city);
+    used.add(n);
+    addHistory("Вы", city);
+    score++; scoreEl.textContent = String(score);
+    if (score>best){ best=score; bestEl.textContent=String(best); localStorage.setItem("cities-best", String(best)); }
+  }
+
+  function addHistory(who, city){
+    const p = document.createElement("p");
+    p.innerHTML = `<b>${who}:</b> ${capitalize(city)}`;
+    historyEl.appendChild(p);
+    historyEl.scrollTop = historyEl.scrollHeight;
+  }
+
+  function isValidCity(inputCity){
+    const n = normalize(inputCity);
+    if (!/^[а-я\- ]{2,}$/.test(n)) return [false,"Только русские буквы (названия на русском)."];
+    if (used.has(n)) return [false,"Этот город уже был."];
+    if (!CITIES.has(n)) return [false,"Не нашёл такой город в списке. Попробуйте другой."];
+    const need = needEl.textContent;
+    if (need && need!=="—" && firstSignificant(n)!==need) return [false,`Нужно на «${need.toUpperCase()}».`];
+    return [true,""];
+  }
+
+  function computerReply(){
+    const needed = lastSignificant(normalize(input.value)) || needEl.textContent;
+    const options = Array.from(CITIES).filter(c=>!used.has(c) && firstSignificant(c)===needed);
+    if (options.length===0){
+      statusEl.textContent = "Отлично! Вариантов не осталось. Раунд завершён.";
+      return;
+    }
+    const pick = options[Math.floor(Math.random()*options.length)];
+    commitComp(pick);
+    statusEl.textContent = "Ваш ход. Введите город на букву: " + needEl.textContent.toUpperCase();
+    renderChain();
+  }
+
+  function submitCity(){
+    const v = input.value.trim();
+    if (!v){ input.focus(); return; }
+    const [ok, msg] = isValidCity(v);
+    if (ok){
+      input.classList.remove("bad"); input.classList.add("ok");
+      commitUser(v);
+      setTimeout(()=>{ input.classList.remove("ok"); input.value=""; computerReply(); }, 240);
+    } else {
+      input.classList.remove("ok"); input.classList.add("bad");
+      statusEl.textContent = msg;
+      setTimeout(()=> input.classList.remove("bad"), 800);
+    }
+  }
+
+  // ====== ПОДСКАЗКИ ======
+  function renderChain(){
+    const needed = needEl.textContent;
+    if (!needed || needed==="—"){ lastChainEl.textContent = ""; return; }
+    const variants = Array.from(CITIES).filter(c=>!used.has(c) && firstSignificant(c)===needed);
+    lastChainEl.innerHTML = variants.length
+      ? `<span>Подходят, например: ${variants.slice(0,12).map(capitalize).join(", ")}${variants.length>12?"…":""}</span>`
+      : `<span>Вариантов больше нет — вы победили в раунде! 🎉</span>`;
+    if (hintsOn) lastChainEl.classList.add("show");
+  }
+
+  toggleHintsBtn.addEventListener("click", ()=>{
+    hintsOn = !hintsOn;
+    toggleHintsBtn.textContent = hintsOn ? "Скрыть подсказки" : "Показать подсказки";
+    lastChainEl.classList.toggle("show", hintsOn);
+  });
+
+  // ====== Слушатели ======
+  input.addEventListener("keydown", e=>{ if (e.key==="Enter") submitCity(); });
+  submit.addEventListener("click", submitCity);
+  newGameBtn.addEventListener("click", resetGame);
+
+  // старт
+  resetGame();
+
+})();
+</script>
+</body>
+</html>

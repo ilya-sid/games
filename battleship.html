@@ -1,0 +1,495 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Морской бой — 2×2</title>
+<style>
+  :root{
+    --bg:#0f1320; --card:#161a2b; --text:#e7eaf6; --muted:#a9b0c7; --accent:#5b7cfa; --grid:#2a2f45;
+    --ok:#1f9d55; --bad:#e11d48; --border:rgba(255,255,255,.12);
+  }
+  @media (prefers-color-scheme: light){
+    :root{ --bg:#f6f7fb; --card:#fff; --text:#0f1222; --muted:#4f5b78; --accent:#3b82f6; --grid:#dfe3f0; --ok:#15803d; --bad:#b91c1c; --border:rgba(0,0,0,.12); }
+  }
+  html[data-theme="light"]{ --bg:#f6f7fb; --card:#fff; --text:#0f1222; --muted:#4f5b78; --accent:#3b82f6; --grid:#dfe3f0; --ok:#15803d; --bad:#b91c1c; --border:rgba(0,0,0,.12); }
+  html[data-theme="dark"] { --bg:#0f1320; --card:#161a2b; --text:#e7eaf6; --muted:#a9b0c7; --accent:#5b7cfa; --grid:#2a2f45; --ok:#1f9d55; --bad:#e11d48; --border:rgba(255,255,255,.12); }
+
+  *{box-sizing:border-box}
+  body{margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto; background:var(--bg); color:var(--text);}
+  .wrap{max-width:980px; margin:auto; padding:18px; position:relative}
+  h1{margin:.2em 0 .3em; font-size:clamp(22px,4vw,32px)}
+  .sub{color:var(--muted); margin-bottom:10px}
+  .panel{display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:space-between}
+  .left{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+  button{background:var(--accent); color:#fff; border:0; padding:10px 14px; border-radius:10px; font-weight:700; cursor:pointer}
+  button.secondary{background:transparent; border:1px solid var(--grid); color:var(--text)}
+  .status{min-height:24px; font-weight:700}
+  .fleet{color:var(--muted)}
+  a{color:var(--accent)}
+  details{background:var(--card); border:1px solid var(--grid); border-radius:12px; padding:10px 12px}
+  summary{cursor:pointer; font-weight:700}
+
+  /* Доски и ячейки */
+  .boards{display:flex;flex-direction:column;gap:16px;align-items:center}
+  .enemy,.you{transition:transform .25s ease}
+  .board{display:grid; grid-template-columns: repeat(11, min(38px,8.3vw)); grid-auto-rows:min(38px,8.3vw); user-select:none}
+  .cell, .corner, .axis{display:flex; align-items:center; justify-content:center; border:1px solid var(--grid); background:var(--card); border-radius:8px; font-size:22px}
+  .corner{background:transparent; border:0}
+  .axis{font-size:14px; color:var(--muted); background:transparent; border:0}
+
+  /* Фазы: до старта — твоя доска снизу нормальная, враг сверху поменьше.
+     После старта — твоя доска наверху и меньше; враг снизу и крупнее. */
+  body.phase-place .enemy{order:1; transform:scale(.85)}
+  body.phase-place .you{order:2; transform:scale(1)}
+  body.phase-fight .you{order:1; transform:scale(.85)}
+  body.phase-fight .enemy{order:2; transform:scale(1.12)}
+
+  .good{color:var(--ok)} .bad{color:var(--bad)}
+
+  /* ===== Выпадающее меню (Игры + Тема) ===== */
+  .menu{position:fixed; right:12px; top:12px; z-index:10}
+  .menu summary{
+    list-style:none; cursor:pointer; background:var(--accent); color:#fff; border:0;
+    padding:8px 12px; border-radius:12px; font-weight:700; box-shadow:0 6px 16px rgba(0,0,0,.25)
+  }
+  .menu summary::-webkit-details-marker{display:none}
+  .menu[open] summary{filter:brightness(.95)}
+  .menuPanel{
+    margin-top:8px; right:0; position:absolute; min-width:240px;
+    background:var(--card); border:1px solid var(--border); border-radius:14px; padding:10px;
+    box-shadow:0 16px 40px rgba(0,0,0,.35)
+  }
+  .menu h4{margin:6px 8px; font-size:13px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em}
+  .menu nav a{display:block; padding:8px 10px; color:var(--text); text-decoration:none; border-radius:10px}
+  .menu nav a:hover{background:rgba(127,127,127,.12)}
+  .themeRow{display:grid; gap:8px; padding:6px 8px 4px}
+  .themeRow select{background:transparent; color:var(--text); border:1px solid var(--grid); border-radius:10px; padding:8px 10px}
+  @media (prefers-color-scheme: light){
+    html[data-theme="light"] .themeRow select{border:1px solid #ccc; background:#fff; color:#000}
+  }
+  @media (max-width:640px){ .enemy{transform:scale(.78)} }
+</style>
+</head>
+<body>
+<!-- Выпадающее меню -->
+<details class="menu">
+  <summary>Меню ▾</summary>
+  <div class="menuPanel" role="menu">
+    <h4>Игры</h4>
+    <nav>
+      <a href="index.html">🧮 Примеры (тренажёр)</a>
+      <a href="battleship.html">🚢 Морской бой</a>
+      <a href="cities.html">🌍 Города</a>
+      <a href="minesweeper.html">💣 Сапёр</a>
+      <a href="tictactoe.html">❌⭕ Крестики-нолики</a>
+    </nav>
+    <h4>Тема</h4>
+    <div class="themeRow">
+      <select id="theme" aria-label="Тема">
+        <option value="light">Светлая</option>
+        <option value="dark">Тёмная</option>
+        <option value="system" selected>Как на устройстве</option>
+      </select>
+    </div>
+  </div>
+</details>
+
+<div class="wrap">
+  <h1>🚢 Морской бой — режим 2×2</h1>
+  <div class="sub">Ставь флот на своём поле, нажми «Начать», затем стреляй по полю противника.</div>
+
+  <div class="panel">
+    <div class="left">
+      <button id="rotate" class="secondary" title="Повернуть корабль">↕ Повернуть</button>
+      <button id="start" disabled>Начать игру</button>
+      <button id="restart" class="secondary">Новая игра</button>
+      <span class="fleet" id="fleetInfo"></span>
+    </div>
+    <div class="status" id="status"></div>
+  </div>
+
+  <div class="boards" id="boards">
+    <div class="enemy">
+      <h3 style="margin:6px 0 8px; color:var(--muted)">Поле сайта (стреляй сюда)</h3>
+      <div id="enemyBoard" class="board"></div>
+    </div>
+    <div class="you">
+      <h3 style="margin:6px 0 8px; color:var(--muted)">Твоё поле (расставь флот)</h3>
+      <div id="yourBoard" class="board"></div>
+    </div>
+  </div>
+
+  <div style="margin-top:16px">
+    <details>
+      <summary>Правила</summary>
+      <div style="margin-top:8px; line-height:1.6">
+        <p><b>Цель:</b> первым потопить все корабли соперника.</p>
+        <p><b>Поле:</b> два поля по 10×10. Корабли не касаются друг друга ни сторонами, ни углами.</p>
+        <p><b>Флот:</b> 1×4 — 1 шт, 1×3 — 2 шт, 1×2 — 3 шт, 1×1 — 4 шт.</p>
+        <p><b>Ход игры:</b> ход по одному выстрелу. Попадание даёт дополнительный выстрел; промах — ход сопернику. ИИ стреляет «по-честному» (без знания позиций) и ограничен от длинных серий.</p>
+        <p><b>Обозначения:</b> вода — 🌊, твой корабль — 🚢, промах — ⚪️, попадание — 💥, утонул — ☠️.</p>
+        <p><b>Как начать:</b> расставь флот кликами по своему полю; «↕ Повернуть» меняет ориентацию. Когда флот готов — кнопка «Начать игру» станет активной.</p>
+      </div>
+    </details>
+  </div>
+
+  <div style="margin-top:14px"><a href="index.html">← Вернуться к тренажёру</a></div>
+</div>
+
+<script>
+(function(){
+  // ---------- Константы/эмодзи ----------
+  const SIZE = 10;
+  const FLEET_PATTERN = [4,3,3,2,2,2,1,1,1,1]; // классика
+  const EMOJI = { water:"🌊", ship:"🚢", miss:"⚪️", hit:"💥", sunk:"☠️" };
+
+  // ---------- Состояние ----------
+  let your = makeEmpty();
+  let enemy = makeEmpty();
+  let yourShips=[], enemyShips=[];
+  let placing = { sizes:[...FLEET_PATTERN], dir:"H" }; // H/V
+  let phase = "place"; // place | fight | over
+  let turn = "you"; // you | enemy
+  let lastEnemyHit = null;
+  let aiHotStreak = 0;
+
+  const elYour = document.getElementById("yourBoard");
+  const elEnemy = document.getElementById("enemyBoard");
+  const statusEl = document.getElementById("status");
+  const startBtn = document.getElementById("start");
+  const rotateBtn = document.getElementById("rotate");
+  const restartBtn = document.getElementById("restart");
+  const fleetInfo = document.getElementById("fleetInfo");
+  const menu = document.querySelector('.menu');
+
+  // ---------- Разметка сеток с осями ----------
+  renderGrid(elYour, true);
+  renderGrid(elEnemy, false);
+  updateFleetInfo();
+  status("Расставь флот. Текущий корабль: " + placing.sizes[0] + " клетки.");
+  document.body.classList.add("phase-place");
+
+  // ---------- Инициализация поля противника ----------
+  enemyShips = randomFleet();
+  applyFleetToBoard(enemy, enemyShips);
+
+  // ---------- Обработчики ----------
+  rotateBtn.onclick = () => {
+    placing.dir = placing.dir === "H" ? "V" : "H";
+    status("Ориентация: " + (placing.dir==="H"?"горизонтально":"вертикально") +
+           ". Текущий корабль: " + (placing.sizes[0] || "—"));
+  };
+
+  restartBtn.onclick = () => {
+    // сброс
+    your = makeEmpty(); enemy = makeEmpty();
+    yourShips = []; enemyShips = [];
+    placing = { sizes:[...FLEET_PATTERN], dir:"H" };
+    phase = "place"; turn = "you"; lastEnemyHit = null; aiHotStreak=0;
+
+    clearBoardUI(elYour); clearBoardUI(elEnemy);
+    renderGrid(elYour, true); renderGrid(elEnemy, false);
+    enemyShips = randomFleet(); applyFleetToBoard(enemy, enemyShips);
+    updateFleetInfo();
+    startBtn.disabled = true;
+
+    // вернуть фазу и порядок
+    document.body.classList.remove("phase-fight");
+    document.body.classList.add("phase-place");
+    const boards = document.getElementById("boards");
+    const enemyBox = boards.querySelector(".enemy");
+    const youBox = boards.querySelector(".you");
+    boards.insertBefore(enemyBox, youBox); // враг сверху, ты снизу
+
+    status("Расставь флот. Текущий корабль: " + placing.sizes[0] + " клетки.");
+  };
+
+  startBtn.onclick = () => {
+    if (phase!=="place") return;
+    phase = "fight";
+    // фаза боя и перестановка: враг вниз, крупный; ты вверх, компактный
+    document.body.classList.remove("phase-place");
+    document.body.classList.add("phase-fight");
+    const boards = document.getElementById("boards");
+    const enemyBox = boards.querySelector(".enemy");
+    boards.appendChild(enemyBox);
+    status("Игра началась! Твой ход. Стреляй по нижнему полю.");
+  };
+
+  // Клик по твоему полю — постановка корабля в фазе place
+  elYour.addEventListener("click", (e)=>{
+    if (phase!=="place") return;
+    const cell = e.target.closest("[data-x]");
+    if (!cell) return;
+    const x = +cell.dataset.x, y = +cell.dataset.y;
+    const size = placing.sizes[0];
+    if (!size) return;
+    const ship = { x, y, len:size, dir:placing.dir, hits:0, coords:[] };
+    if (!canPlace(your, ship)) { flashBad(cell); return; }
+    placeShip(your, ship);
+    yourShips.push(ship);
+    drawYourBoard();
+    placing.sizes.shift();
+    updateFleetInfo();
+    if (!placing.sizes.length) {
+      startBtn.disabled = false;
+      status("Флот готов. Нажми «Начать игру».");
+    } else {
+      status("Поставлено. Осталось: " + placing.sizes.join(", ") + ". Текущий — " + placing.sizes[0]);
+    }
+  });
+
+  // Клик по вражескому полю — выстрел в фазе fight
+  elEnemy.addEventListener("click", (e)=>{
+    if (phase!=="fight" || turn!=="you") return;
+    const cell = e.target.closest("[data-x]");
+    if (!cell) return;
+    const x = +cell.dataset.x, y = +cell.dataset.y;
+    const tile = enemy[y][x];
+    if (tile.shot) return; // уже стрелял
+    shootAt(enemy, enemyShips, x, y, true);
+  });
+
+  // ---------- Функции поля/отрисовки ----------
+  function makeEmpty(){
+    return Array.from({length:SIZE}, ()=> Array.from({length:SIZE}, ()=>({
+      ship:false, shot:false, sunk:false
+    })));
+  }
+
+  function renderGrid(container, isYou){
+    container.innerHTML = "";
+    // оси
+    container.appendChild(axisCell("corner"));
+    for(let x=0; x<SIZE; x++) container.appendChild(axisCell("axis", String.fromCharCode(65+x)));
+    for(let y=0; y<SIZE; y++){
+      container.appendChild(axisCell("axis", String(y+1)));
+      for(let x=0; x<SIZE; x++){
+        const c = document.createElement("div");
+        c.className = "cell";
+        c.dataset.x = x; c.dataset.y = y;
+        c.textContent = EMOJI.water;
+        container.appendChild(c);
+      }
+    }
+    if (isYou) drawYourBoard(); else drawEnemyBoard();
+  }
+
+  function axisCell(cls, txt=""){
+    const d = document.createElement("div");
+    d.className = cls==="corner"?"corner":"axis";
+    d.textContent = txt;
+    return d;
+  }
+
+  function clearBoardUI(container){ /* перерисуем в renderGrid */ }
+
+  function forEachCell(container, fn){
+    // учесть оси: 11×11, реальные клетки после первой колонки/строки
+    for(let y=0;y<SIZE;y++){
+      for(let x=0;x<SIZE;x++){
+        const i = 1 + SIZE + y*(SIZE+1) + 1 + x;
+        const el = container.children[i];
+        fn(x,y,el);
+      }
+    }
+  }
+
+  function drawYourBoard(){
+    forEachCell(elYour, (x,y,el)=>{
+      const t = your[y][x];
+      if (t.sunk) el.textContent = EMOJI.sunk;
+      else if (t.shot && t.ship) el.textContent = EMOJI.hit;
+      else if (t.shot && !t.ship) el.textContent = EMOJI.miss;
+      else if (t.ship) el.textContent = EMOJI.ship;
+      else el.textContent = EMOJI.water;
+    });
+  }
+
+  function drawEnemyBoard(){
+    forEachCell(elEnemy, (x,y,el)=>{
+      const t = enemy[y][x];
+      if (t.sunk) el.textContent = EMOJI.sunk;
+      else if (t.shot && t.ship) el.textContent = EMOJI.hit;
+      else if (t.shot && !t.ship) el.textContent = EMOJI.miss;
+      else el.textContent = EMOJI.water;
+    });
+  }
+
+  // ---------- Постановка кораблей ----------
+  function canPlace(board, ship){
+    const {x,y,len,dir} = ship;
+    if (dir==="H"){
+      if (x+len-1 >= SIZE) return false;
+      for(let i=0;i<len;i++){ if (!cellFree(board, x+i, y)) return false; }
+      for(let i=-1;i<=len;i++){
+        for(let dy=-1; dy<=1; dy++){
+          const nx = x+i, ny = y+dy;
+          if (inside(nx,ny) && board[ny][nx]?.ship) return false;
+        }
+      }
+    } else {
+      if (y+len-1 >= SIZE) return false;
+      for(let i=0;i<len;i++){ if (!cellFree(board, x, y+i)) return false; }
+      for(let i=-1;i<=len;i++){
+        for(let dx=-1; dx<=1; dx++){
+          const nx = x+dx, ny = y+i;
+          if (inside(nx,ny) && board[ny][nx]?.ship) return false;
+        }
+      }
+    }
+    return true;
+  }
+  function cellFree(board, x,y){ return inside(x,y) && !board[y][x].ship; }
+  function inside(x,y){ return x>=0 && x<SIZE && y>=0 && y<SIZE; }
+
+  function placeShip(board, ship){
+    const {x,y,len,dir} = ship;
+    ship.coords = [];
+    if (dir==="H"){
+      for(let i=0;i<len;i++){ board[y][x+i].ship = true; ship.coords.push([x+i,y]); }
+    } else {
+      for(let i=0;i<len;i++){ board[y+i][x].ship = true; ship.coords.push([x,y+i]); }
+    }
+  }
+
+  function randomFleet(){
+    const board = makeEmpty();
+    const ships = [];
+    for (const len of FLEET_PATTERN){
+      let placed = false, guard=0;
+      while(!placed && guard<500){
+        guard++;
+        const dir = Math.random()<.5 ? "H" : "V";
+        const x = rand(0, SIZE-1), y = rand(0, SIZE-1);
+        const s = {x,y,len,dir,hits:0,coords:[]};
+        if (canPlace(board, s)){ placeShip(board, s); ships.push(s); placed = true; }
+      }
+    }
+    return ships;
+  }
+
+  function applyFleetToBoard(board, ships){
+    ships.forEach(s => s.coords.forEach(([x,y])=> board[y][x].ship = true));
+  }
+
+  // ---------- Стрельба ----------
+  function shootAt(board, ships, x, y, isYou){
+    const t = board[y][x];
+    t.shot = true;
+    let hit = false;
+    if (t.ship){
+      hit = true;
+      const ship = ships.find(s => s.coords.some(([cx,cy])=>cx===x && cy===y));
+      ship.hits++;
+      if (ship.hits >= ship.len){ ship.coords.forEach(([cx,cy])=> board[cy][cx].sunk = true); }
+    }
+    if (isYou){
+      drawEnemyBoard();
+      if (isAllSunk(ships)) return endGame("Ты победил! 🏆");
+      if (hit){ status("Попадание! Стреляй ещё."); }
+      else { status("Промах. Ход соперника…"); turn = "enemy"; setTimeout(aiTurn, 600); }
+    } else {
+      drawYourBoard();
+      if (isAllSunk(ships)) return endGame("Сайт победил. Попробуем ещё раз?");
+      if (hit){
+        aiHotStreak++; // ограничим серии
+        if (aiHotStreak < 2){ status("Соперник попал и стреляет ещё…"); setTimeout(aiTurn, 700); }
+        else { aiHotStreak = 0; turn = "you"; status("Соперник попал. Твой ход!"); }
+      } else {
+        aiHotStreak = 0; turn = "you"; status("Соперник промахнулся. Твой ход!");
+      }
+    }
+  }
+
+  function isAllSunk(ships){ return ships.every(s => s.hits >= s.len); }
+  function endGame(msg){ phase = "over"; status(msg); }
+  function rand(a,b){ return Math.floor(Math.random()*(b-a+1))+a; }
+  function status(text){ statusEl.textContent = text; }
+
+  // ---------- Ход ИИ ----------
+  function aiTurn(){
+    if (phase!=="fight") return;
+    let target = null;
+    const candidates = [];
+    for(let y=0;y<SIZE;y++) for(let x=0;x<SIZE;x++){
+      if (!your[y][x].shot) candidates.push([x,y]);
+    }
+    if (lastEnemyHit){
+      const [hx,hy] = lastEnemyHit;
+      const around = [[hx+1,hy],[hx-1,hy],[hx,hy+1],[hx,hy-1]].filter(([x,y])=>inside(x,y)&&!your[y][x].shot);
+      if (around.length) target = around[Math.floor(Math.random()*around.length)];
+      else lastEnemyHit = null;
+    }
+    if (!target){ target = weightedPick(candidates); }
+    const [x,y] = target;
+    const wasShip = your[y][x].ship;
+    shootAt(your, yourShips, x, y, false);
+    if (wasShip && your[y][x].shot){ lastEnemyHit = [x,y]; }
+    else if (!wasShip){ lastEnemyHit = null; }
+  }
+
+  function weightedPick(cands){
+    const good = [], rest = [];
+    for (const [x,y] of cands){
+      const neigh = [[1,0],[-1,0],[0,1],[0,-1]];
+      let missAdj = 0;
+      for (const [dx,dy] of neigh){
+        const nx=x+dx, ny=y+dy;
+        if (inside(nx,ny) && your[ny][nx].shot && !your[ny][nx].ship) missAdj++;
+      }
+      (missAdj>=2 ? rest : good).push([x,y]);
+    }
+    const pool = good.length?good:rest;
+    return pool[Math.floor(Math.random()*pool.length)];
+  }
+
+  // ---------- Вспомогательные ----------
+  function updateFleetInfo(){
+    if (!placing.sizes.length) { fleetInfo.textContent = "Флот готов."; return; }
+    const left = [...placing.sizes].sort((a,b)=>b-a).join(", ");
+    fleetInfo.textContent = "Осталось: " + left;
+  }
+
+  function flashBad(cell){
+    cell.style.outline = "2px solid var(--bad)";
+    setTimeout(()=> cell.style.outline = "", 300);
+  }
+
+  function drawYourBoardInitial(){ drawYourBoard(); drawEnemyBoard(); }
+  drawYourBoardInitial();
+
+  // Авто-блокировка «Начать», пока флот не расставлен
+  const observer = new MutationObserver(()=>{ startBtn.disabled = placing.sizes.length>0 || phase!=="place"; });
+  observer.observe(fleetInfo, {childList:true});
+
+  // ---------- Тема (в меню) ----------
+  const themeSel = document.getElementById("theme");
+  function applyTheme(mode){
+    document.documentElement.setAttribute("data-theme", mode);
+    localStorage.setItem("battleship-theme", mode);
+    if(mode==="system"){ document.documentElement.setAttribute("data-theme","system"); }
+  }
+  (function initTheme(){
+    const saved = localStorage.getItem("battleship-theme") || "system";
+    themeSel.value = saved; applyTheme(saved);
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    mq.addEventListener("change", ()=>{ if((localStorage.getItem("battleship-theme")||"system")==="system") applyTheme("system"); });
+  })();
+  themeSel.addEventListener("change", ()=> { applyTheme(themeSel.value); document.querySelector('.menu').open=false; });
+
+  // Закрывать меню по клику по ссылке
+  document.querySelectorAll('.menu nav a').forEach(a=>{
+    a.addEventListener('click', ()=> { menu.open = false; });
+  });
+
+  // ---------- Постановка/валидация (используются выше) ----------
+  function forEachShipCell(board, fn){
+    for (let y=0;y<SIZE;y++) for (let x=0;x<SIZE;x++) if (board[y][x].ship) fn(x,y);
+  }
+
+})();
+</script>
+</body>
+</html>
